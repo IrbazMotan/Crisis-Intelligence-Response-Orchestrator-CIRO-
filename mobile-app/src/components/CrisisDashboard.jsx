@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import L from 'leaflet';
 import { Globe, Cloud, Car, Activity, CheckCircle2, ChevronDown, ChevronUp, Send, Loader2, Terminal, AlertTriangle, Languages, Wind, Thermometer, Droplets } from 'lucide-react';
 
-const BACKEND_URL = "https://irbazmemon123-ciro-backend.hf.space";
+const BACKEND_URL = "https://irbazmemon123-crisis-intelligence-response-orche-28b6ea0.hf.space";
 
 const CITY_COORDS = {
   Karachi:    { lat: 24.8607, lng: 67.0011 },

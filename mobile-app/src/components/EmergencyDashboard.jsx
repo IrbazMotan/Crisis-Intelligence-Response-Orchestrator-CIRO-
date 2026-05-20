@@ -25,7 +25,7 @@ import {
   Send
 } from 'lucide-react';
 
-const BACKEND_URL = "https://irbazmemon123-ciro-backend.hf.space";
+const BACKEND_URL = "https://irbazmemon123-crisis-intelligence-response-orche-28b6ea0.hf.space";
 
 
 
