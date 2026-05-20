@@ -321,7 +321,6 @@ export default function EmergencyDashboard() {
   // SUBMIT TRIGGER DISPATCHER
   // ─────────────────────────────────────────────
   const launchAgentDispatch = async () => {
-  const launchAgentDispatch = async () => {
     if (!rawSignalText.trim()) {
       setToastType("error");
       setToastMessage("⚠️ Please enter a raw emergency signal.");
