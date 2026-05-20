@@ -18,3 +18,7 @@ server/tools/__pycache__/
 # Testing
 /mobile-app/playwright-report/
 /mobile-app/test-results/
+
+# Deployment Space
+hf-space/
+
