@@ -25,7 +25,7 @@ import {
   Send
 } from 'lucide-react';
 
-const BACKEND_URL = `http://${window.location.hostname}:8000`;
+const BACKEND_URL = "https://irbazmemon123-ciro-backend.hf.space";
 
 
 

@@ -36,7 +36,7 @@
       67.039
     ],
     "available_beds": 10,
-    "icu_beds": 10,
+    "icu_beds": 12,
     "ventilators": 6,
     "contact_number": "+92-21-99201271",
     "accepts_trauma": false
@@ -77,8 +77,50 @@
       24.8688834,
       67.0338205
     ],
-    "available_beds": 18,
-    "icu_beds": 10,
+    "available_beds": 15,
+    "icu_beds": 5,
+    "ventilators": 2,
+    "contact_number": "+92-111-111-111",
+    "accepts_trauma": true
+  },
+  {
+    "id": "OSM-HOSP-247128526",
+    "name": "Highway Medical Center",
+    "hospital_type": "Medical Center",
+    "coordinates": [
+      24.9403111,
+      67.079921
+    ],
+    "available_beds": 15,
+    "icu_beds": 5,
+    "ventilators": 2,
+    "contact_number": "+92-111-111-111",
+    "accepts_trauma": true
+  },
+  {
+    "id": "OSM-HOSP-245736146",
+    "name": "Okhai Memon Complex",
+    "hospital_type": "General Hospital",
+    "coordinates": [
+      24.8584363,
+      66.9923584
+    ],
+    "available_beds": 15,
+    "icu_beds": 5,
+    "ventilators": 2,
+    "contact_number": "+92-111-111-111",
+    "accepts_trauma": true
+  },
+  {
+    "id": "OSM-HOSP-246088216",
+    "name": "Hospital",
+    "hospital_type": "General Hospital",
+    "coordinates": [
+      24.8540883,
+      67.0745336
+    ],
+    "available_beds": 15,
+    "icu_beds": 5,
     "ventilators": 2,
     "contact_number": "+92-111-111-111",
     "accepts_trauma": true
