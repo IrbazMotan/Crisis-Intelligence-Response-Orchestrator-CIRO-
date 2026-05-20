@@ -28,6 +28,7 @@ const SIGNAL_PRESETS = {
   accident:       ['Shadeed hadsa M2 motorway pe, 3 gaariyan takra gayi, zakmi hain', 'Head-on collision near Gulshan chowrangi, road blocked'],
   heatwave:       ['Karachi mein garmi 47 degrees, log behosh ho rahe hain', 'Extreme heat stroke cases in Lahore today, hospital full'],
   infrastructure: ['Bijli subah se gaya hai, hospital ka generator bhi band', 'Major power outage in Orangi Town — 6 hours hue'],
+  disinformation: ['Clifton 5 mein pani bhara hua hai', 'Gulshan mein heavy flood hai, completely submerged!'],
 };
 
 const CRISIS_CFG = {
@@ -36,6 +37,7 @@ const CRISIS_CFG = {
   accident:       { ring: 'border-amber-500/40',  badge: 'bg-amber-500/20 text-amber-300', icon: '🚗' },
   heatwave:       { ring: 'border-orange-500/40', badge: 'bg-orange-500/20 text-orange-300',icon: '☀️' },
   infrastructure: { ring: 'border-purple-500/40', badge: 'bg-purple-500/20 text-purple-300',icon: '⚡' },
+  disinformation: { ring: 'border-slate-500/40',  badge: 'bg-slate-500/20 text-slate-300', icon: '🚫' },
 };
 
 const SEV = {
@@ -210,7 +212,7 @@ export default function CrisisDashboard() {
           <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">
             {lang === 'ur' ? 'بحران کی قسم' : 'Crisis Presets'}
           </p>
-          <div className="grid grid-cols-5 gap-1">
+          <div className="grid grid-cols-6 gap-1">
             {Object.entries(CRISIS_CFG).map(([key, c]) => (
               <button key={key} onClick={() => loadPreset(key)}
                 className={`py-2 rounded-lg text-base flex items-center justify-center border transition-all ${preset === key ? c.ring + ' bg-slate-900/60' : 'border-slate-800 hover:border-slate-600'}`}
@@ -291,6 +293,23 @@ export default function CrisisDashboard() {
             <div className="bg-amber-950/20 border-b border-amber-500/20 px-3 py-2 text-center" dir="rtl">
               <p className="text-sm text-amber-300 font-bold">{result.urdu_alert}</p>
             </div>
+
+            {/* Validated Signals */}
+            {result.validated_signals && (
+              <div className="border-b border-slate-800 p-3 space-y-2">
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Signal Verification (Satellite/Weather)</p>
+                {result.validated_signals.map((sig, idx) => (
+                  <div key={idx} className={`p-2.5 rounded-xl border text-[10px] ${sig.is_valid ? 'bg-emerald-950/25 border-emerald-500/30 text-emerald-300' : 'bg-red-950/25 border-red-500/30 text-red-300'}`}>
+                    <div className="flex items-center justify-between font-bold mb-1">
+                      <span>Signal #{idx+1}: {sig.is_valid ? '✅ VERIFIED REAL' : '⚠️ FAKE / FALSE INFO'}</span>
+                      <span className="text-[8px] text-slate-500 uppercase">{sig.location}</span>
+                    </div>
+                    <p className="text-slate-400 mb-1 leading-relaxed">"{sig.post}"</p>
+                    <p className={`text-[8.5px] font-bold ${sig.is_valid ? 'text-emerald-400' : 'text-red-400'}`}>{sig.reason}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="p-3 space-y-3">
               {/* Matched Keywords */}

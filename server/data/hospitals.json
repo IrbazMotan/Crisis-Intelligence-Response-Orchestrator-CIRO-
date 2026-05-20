@@ -36,7 +36,7 @@
       67.039
     ],
     "available_beds": 10,
-    "icu_beds": 12,
+    "icu_beds": 10,
     "ventilators": 6,
     "contact_number": "+92-21-99201271",
     "accepts_trauma": false
@@ -67,6 +67,20 @@
     "icu_beds": 6,
     "ventilators": 2,
     "contact_number": "+92-21-111-111-880",
+    "accepts_trauma": true
+  },
+  {
+    "id": "OSM-HOSP-245798081",
+    "name": "MS Medical And Dental Center",
+    "hospital_type": "Medical Center",
+    "coordinates": [
+      24.8688834,
+      67.0338205
+    ],
+    "available_beds": 18,
+    "icu_beds": 10,
+    "ventilators": 2,
+    "contact_number": "+92-111-111-111",
     "accepts_trauma": true
   }
 ]

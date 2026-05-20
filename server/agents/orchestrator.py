@@ -151,6 +151,30 @@ class CIROOrchestrator:
                     accepts_trauma=assigned_hosp.get("accepts_trauma", True)
                 )
                 self.state.hospitals.append(new_h)
+                
+                # Persist to hospitals.json
+                db_path = os.path.join(os.path.dirname(__file__), "..", "data", "hospitals.json")
+                if os.path.exists(db_path):
+                    try:
+                        with open(db_path, "r") as f:
+                            hosp_list = json.load(f)
+                        if not any(h["id"] == h_id for h in hosp_list):
+                            hosp_list.append({
+                                "id": h_id,
+                                "name": new_h.name,
+                                "hospital_type": new_h.hospital_type,
+                                "coordinates": list(new_h.coordinates),
+                                "available_beds": new_h.available_beds,
+                                "icu_beds": new_h.icu_beds,
+                                "ventilators": new_h.ventilators,
+                                "contact_number": new_h.contact_number,
+                                "accepts_trauma": new_h.accepts_trauma
+                            })
+                            with open(db_path, "w") as f:
+                                json.dump(hosp_list, f, indent=2)
+                    except Exception as e:
+                        self._log(f"[WARNING] Failed to persist new hospital to JSON: {e}")
+                        
             # 4. Reserve resource and dispatch responder
             success = self.dispatch_agent.run(patient_req, assigned_hosp)
         else:

@@ -49,21 +49,6 @@ class DispatchAgent:
     def _find_available_ambulance(self, patient_coords: Tuple[float, float]) -> AmbulanceState:
         """Finds the closest available ambulance, or spawns one if none exist."""
         available_ambs = [amb for amb in self.state.ambulances if amb.is_available]
-        
-        if not available_ambs:
-            # Spawn a default mock ambulance slightly offset from the patient to simulate distance
-            amb_id = f"AMB-{len(self.state.ambulances) + 1:02d}"
-            spawn_coords = (patient_coords[0] + 0.02, patient_coords[1] - 0.02)
-            self._log(f"No free ambulances in queue. Spawning a new emergency responder: {amb_id} at {spawn_coords}")
-            new_amb = AmbulanceState(
-                id=amb_id,
-                current_coordinates=spawn_coords,
-                is_available=True
-            )
-            self.state.ambulances.append(new_amb)
-            return new_amb
-
-        # Find closest available ambulance
         closest_amb = None
         min_dist = float('inf')
         for amb in available_ambs:
@@ -72,8 +57,21 @@ class DispatchAgent:
                 min_dist = dist
                 closest_amb = amb
 
-        self._log(f"Located closest available responder: {closest_amb.id} ({min_dist} km away)")
-        return closest_amb
+        if closest_amb and min_dist <= 100.0:
+            self._log(f"Located closest available responder: {closest_amb.id} ({min_dist} km away)")
+            return closest_amb
+
+        # Spawn a default mock ambulance slightly offset from the patient to simulate local distance
+        amb_id = f"AMB-{len(self.state.ambulances) + 1:02d}"
+        spawn_coords = (patient_coords[0] + 0.02, patient_coords[1] - 0.02)
+        self._log(f"No free local responders within 100km. Spawning a new emergency responder: {amb_id} at {spawn_coords}")
+        new_amb = AmbulanceState(
+            id=amb_id,
+            current_coordinates=spawn_coords,
+            is_available=True
+        )
+        self.state.ambulances.append(new_amb)
+        return new_amb
 
     def _generate_simulated_polyline(self, start: Tuple[float, float], mid: Tuple[float, float], end: Tuple[float, float]) -> List[Tuple[float, float]]:
         """Generates REAL road GPS waypoints between three nodes using LIVE OSRM API."""

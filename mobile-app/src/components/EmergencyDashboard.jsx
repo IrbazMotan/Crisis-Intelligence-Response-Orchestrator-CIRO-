@@ -599,6 +599,8 @@ export default function EmergencyDashboard() {
         console.warn("Failed resetting FastAPI:", err);
       }
     }
+  };
+
   // Parse logs for visual hospital finder HUD
   const parseHospitalSelection = () => {
     const evaluations = [];
@@ -783,19 +785,19 @@ export default function EmergencyDashboard() {
                   onClick={() => setRawSignalText("Massive flood near Aga Khan Hospital stadium road, cars are drowning, we need boats!")}
                   className="px-2.5 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-[9px] text-blue-300 hover:bg-blue-500/20 transition-colors"
                 >
-                  🌊 Flood (English)
+                  🌊 Flood (Seelab)
                 </button>
                 <button
                   onClick={() => setRawSignalText("Clifton block 5 mein aag lag gayi hai, building se dhuaan nikal raha hai, severe burning, please dispatch firetruck.")}
                   className="px-2.5 py-1.5 bg-red-500/10 border border-red-500/30 rounded-lg text-[9px] text-red-300 hover:bg-red-500/20 transition-colors"
                 >
-                  🔥 Fire (Roman Urdu)
+                  🔥 Fire (Aagh)
                 </button>
                 <button
                   onClick={() => setRawSignalText("Terrible multi-car accident on Shahrah-e-Faisal near FTC building. Need ICU and critical trauma support immediately.")}
                   className="px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[9px] text-amber-300 hover:bg-amber-500/20 transition-colors"
                 >
-                  🚗 Accident (ICU)
+                  🚗 Accident (Hadsa)
                 </button>
               </div>
             </div>

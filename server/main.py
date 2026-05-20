@@ -48,7 +48,7 @@ def align_mock_database(write_file: bool = True):
     """
     db_path = os.path.join(os.path.dirname(__file__), "data", "hospitals.json")
     
-    if write_file:
+    if write_file and not os.path.exists(db_path):
         # 1. Update hospitals database file with pristine mock data
         mock_hospitals = [
             {
@@ -243,12 +243,6 @@ def trigger_emergency(payload: Dict[str, Any]):
     for i in range(start_log_count, len(orchestrator.state.event_log)):
         orchestrator.state.event_log[i]["incident_id"] = incident_id
 
-    # 3. Override patient request coordinates if coordinates were explicitly sent
-    if live_coords:
-        patient_req = next((p for p in orchestrator.state.patient_requests if p.id == incident_id), None)
-        if patient_req:
-            patient_req.location = live_coords
-            patient_data["location"] = patient_req.location
 
     # 4. Handle occupied/no-hospital warning logic/rejected security validation
     if patient_data.get("status") == "rejected":
@@ -483,6 +477,35 @@ def reset_simulation():
     """
     Resets the backend session memory and database records.
     """
+    # Load all hospitals from the file, reset their beds to initial values, and update state
+    db_path = os.path.join(os.path.dirname(__file__), "data", "hospitals.json")
+    if os.path.exists(db_path):
+        try:
+            with open(db_path, "r") as f:
+                hospitals = json.load(f)
+            for h in hospitals:
+                # Reset resources to default values
+                if h["id"].startswith("OSM-"):
+                    h["available_beds"] = 15
+                    h["icu_beds"] = 5
+                    h["ventilators"] = 2
+                else:
+                    # Reset mock hospitals to their specific pristine capacities
+                    if h["id"] == "HOSP-A":
+                        h["available_beds"], h["icu_beds"], h["ventilators"] = 25, 2, 1
+                    elif h["id"] == "HOSP-B":
+                        h["available_beds"], h["icu_beds"], h["ventilators"] = 15, 8, 4
+                    elif h["id"] == "HOSP-C":
+                        h["available_beds"], h["icu_beds"], h["ventilators"] = 10, 12, 6
+                    elif h["id"] == "HOSP-D":
+                        h["available_beds"], h["icu_beds"], h["ventilators"] = 30, 5, 3
+                    elif h["id"] == "HOSP-E":
+                        h["available_beds"], h["icu_beds"], h["ventilators"] = 18, 6, 2
+            with open(db_path, "w") as f:
+                json.dump(hospitals, f, indent=2)
+        except Exception as e:
+            pass
+            
     align_mock_database(write_file=False)
     return {
         "message": "Simulation world state and hospital databases successfully reset."

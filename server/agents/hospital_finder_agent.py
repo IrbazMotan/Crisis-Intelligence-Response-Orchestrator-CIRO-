@@ -97,34 +97,43 @@ class HospitalFinderAgent:
                     
                 hid = f"OSM-HOSP-{element['place_id']}"
                 if not any(h["id"] == hid for h in h_list):
-                    htype = "General Hospital"
-                    if "clinic" in term:
-                        htype = "Local Clinic"
-                    elif "medical" in term:
-                        htype = "Medical Center"
-                        
-                    # Check if core registry is completely depleted
-                    core_depleted = False
-                    if self.state.hospitals:
-                        total_beds = sum(h.available_beds for h in self.state.hospitals)
-                        total_icu = sum(h.icu_beds for h in self.state.hospitals)
-                        total_vents = sum(h.ventilators for h in self.state.hospitals)
-                        if total_beds == 0 and total_icu == 0 and total_vents == 0:
-                            core_depleted = True
-
-                    # Dynamic random resource seeds
-                    if core_depleted:
-                        avail_beds = 0
-                        icu_beds = 0
-                        vents = 0
+                    # Check if this hospital is already in the orchestrator's state (loaded from database)
+                    existing_state_h = next((h for h in self.state.hospitals if h.id == hid), None)
+                    
+                    if existing_state_h:
+                        avail_beds = existing_state_h.available_beds
+                        icu_beds = existing_state_h.icu_beds
+                        vents = existing_state_h.ventilators
+                        htype = existing_state_h.hospital_type
                     else:
-                        avail_beds = random.randint(5, 30)
-                        icu_beds = random.randint(1, 10)
-                        vents = random.randint(1, 5)
-                        if htype == "Local Clinic":
-                            avail_beds = random.randint(1, 4)
+                        htype = "General Hospital"
+                        if "clinic" in term:
+                            htype = "Local Clinic"
+                        elif "medical" in term:
+                            htype = "Medical Center"
+                            
+                        # Check if core registry is completely depleted
+                        core_depleted = False
+                        if self.state.hospitals:
+                            total_beds = sum(h.available_beds for h in self.state.hospitals)
+                            total_icu = sum(h.icu_beds for h in self.state.hospitals)
+                            total_vents = sum(h.ventilators for h in self.state.hospitals)
+                            if total_beds == 0 and total_icu == 0 and total_vents == 0:
+                                core_depleted = True
+
+                        # Dynamic random resource seeds
+                        if core_depleted:
+                            avail_beds = 0
                             icu_beds = 0
                             vents = 0
+                        else:
+                            avail_beds = random.randint(5, 30)
+                            icu_beds = random.randint(1, 10)
+                            vents = random.randint(1, 5)
+                            if htype == "Local Clinic":
+                                avail_beds = random.randint(1, 4)
+                                icu_beds = 0
+                                vents = 0
                         
                     h_list.append({
                         "id": hid,
@@ -182,14 +191,38 @@ class HospitalFinderAgent:
 
     def _sort_by_distance(self, patient_coords, hospitals: List[Dict]) -> List[Dict]:
         """Sort hospitals by Live OSRM road distance and ETA from patient location, prioritizing actual hospitals over clinics."""
+        import math
+        # 1. Fast mathematical sort first
+        p_lat, p_lon = patient_coords
         for h in hospitals:
+            h_lat, h_lon = h["coordinates"]
+            # Haversine distance
+            R = 6371.0
+            dlat = math.radians(h_lat - p_lat)
+            dlon = math.radians(h_lon - p_lon)
+            a = math.sin(dlat/2)**2 + math.cos(math.radians(p_lat)) * math.cos(math.radians(h_lat)) * math.sin(dlon/2)**2
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+            h["_hav_dist"] = R * c
+            h["type_priority"] = 1 if h.get("hospital_type") == "Local Clinic" else 0
+
+        # Sort candidate pool by type_priority first, then raw haversine distance
+        hospitals_sorted_hav = sorted(hospitals, key=lambda h: (h["type_priority"], h["_hav_dist"]))
+        
+        # 2. Only calculate OSRM for the top 5 candidates
+        top_n = hospitals_sorted_hav[:5]
+        for h in top_n:
             result = get_distance(patient_coords, tuple(h["coordinates"]))
             h["_distance_km"]  = result["distance_km"]
             h["_eta_minutes"]  = result["eta_minutes"]
             h["_route_source"] = result.get("source", "HAVERSINE")
-            # Set type priority: actual hospitals (priority 0) first, local clinics (priority 1) last
-            h["type_priority"] = 1 if h.get("hospital_type") == "Local Clinic" else 0
-        return sorted(hospitals, key=lambda h: (h["type_priority"], h["_eta_minutes"], h["_distance_km"]))
+            
+        # For the remaining candidates, fill with haversine fallback to avoid calling OSRM
+        for h in hospitals_sorted_hav[5:]:
+            h["_distance_km"]  = round(h["_hav_dist"], 2)
+            h["_eta_minutes"]  = max(1, int(h["_hav_dist"] * 1.5))
+            h["_route_source"] = "HAVERSINE_FAST_FALLBACK"
+
+        return sorted(hospitals_sorted_hav, key=lambda h: (h["type_priority"], h["_eta_minutes"], h["_distance_km"]))
 
     def _check_fit(self, h_meta: Dict, resources: Dict, patient: PatientRequest) -> tuple:
         """

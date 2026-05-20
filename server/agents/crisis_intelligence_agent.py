@@ -19,11 +19,72 @@ Supports Urdu, Roman Urdu, and English mixed inputs.
 """
 
 import re
+import os
+import json
 import random
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
+import requests
+import google.generativeai as genai
+from dotenv import load_dotenv
 from shared.state_schema import SystemState
 
+load_dotenv()
+api_key = os.getenv("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
+
+
+
+# ─── Local Karachi Location Coordinates ─────────────────────────────
+LOCAL_KARACHI_LOCATIONS = {
+    "balouch ka pull": (24.8533, 67.0682),
+    "baloch colony bridge": (24.8533, 67.0682),
+    "baloch colony flyover": (24.8533, 67.0682),
+    "baloch colony pull": (24.8533, 67.0682),
+    "balouch colony pull": (24.8533, 67.0682),
+    "baloch bridge": (24.8533, 67.0682),
+    "balouch bridge": (24.8533, 67.0682),
+    "baloch colony": (24.8533, 67.0682),
+    "balouch colony": (24.8533, 67.0682),
+    "teen talwar": (24.8236, 67.0329),
+    "do talwar": (24.8219, 67.0305),
+    "stadium road": (24.8942, 67.0789),
+    "national stadium": (24.8942, 67.0789),
+    "clifton 5": (24.8268, 67.0264),
+    "clifton block 5": (24.8268, 67.0264),
+    "clifton": (24.8268, 67.0264),
+    "ftc": (24.8569, 67.0531),
+    "ftc building": (24.8569, 67.0531),
+    "nipa": (24.9179, 67.0972),
+    "nipa chowrangi": (24.9179, 67.0972),
+    "nipa chaurangi": (24.9179, 67.0972),
+    "numaish": (24.8732, 67.0322),
+    "numaish chowrangi": (24.8732, 67.0322),
+    "numaish chaurangi": (24.8732, 67.0322),
+    "karsaz": (24.8872, 67.0872),
+    "karsaz road": (24.8872, 67.0872),
+    "gulshan": (24.9180, 67.0970),
+    "gulshan-e-iqbal": (24.9180, 67.0970),
+    "gulshan iqbal": (24.9180, 67.0970),
+    "saddar": (24.8605, 67.0261),
+    "i.i. chundrigar": (24.8505, 67.0016),
+    "chundrigar road": (24.8505, 67.0016),
+    "ii chundrigar": (24.8505, 67.0016),
+    "water pump": (24.9455, 67.0792),
+    "sohrab goth": (24.9601, 67.0873),
+    "nazimabad": (24.9137, 67.0343),
+    "liaquatabad": (24.9088, 67.0427),
+    "bahadurabad": (24.8824, 67.0664),
+    "tariq road": (24.8705, 67.0543),
+    "dha": (24.8010, 67.0673),
+    "orangi": (24.9463, 66.9749),
+    "korangi": (24.8360, 67.1265),
+    "malir": (24.9056, 67.1973),
+    "shahrah-e-faisal": (24.8660, 67.0768),
+    "shara-e-faisal": (24.8660, 67.0768),
+    "university road": (24.9142, 67.1089)
+}
 
 # ── Urdu / Roman-Urdu Keyword Maps ───────────────────────────────────────────
 URDU_FLOOD_KEYWORDS = [
@@ -142,6 +203,20 @@ CRISIS_DETECTION_CONFIG = {
         "urdu_alert": "بنیادی ڈھانچے کی خرابی! متعلقہ ادارے کو اطلاع دی گئی ہے۔",
         "icon": "⚡",
         "color": "purple"
+    },
+    "disinformation": {
+        "en_keywords": [],
+        "ur_keywords": [],
+        "severity_amplifiers": [],
+        "default_severity": "LOW",
+        "response_actions": [
+            "No action taken. Incident flagged as disinformation / false report.",
+            "Disinformation warning broadcasted to local response network.",
+            "Signal logs flagged in monitoring database."
+        ],
+        "urdu_alert": "جھوٹی خبر! کوئی ہنگامی صورتحال نہیں پائی گئی۔",
+        "icon": "🚫",
+        "color": "gray"
     }
 }
 
@@ -213,24 +288,73 @@ class CrisisIntelligenceAgent:
             print(f"  [{entry['timestamp']}] [{self.name}] {safe_msg}")
 
     def _simulate_weather_signal(self, city: str = "Karachi") -> Dict[str, Any]:
-        """Simulates a weather API signal for the current city."""
+        """Fetches live weather API signal for the current city using Open-Meteo."""
+        import requests
+        try:
+            # 1. Geocode the city
+            url = f"https://nominatim.openstreetmap.org/search?q={city}, Pakistan&format=json&limit=1"
+            headers = {"User-Agent": "CIRO-Antigravity-Agent/1.0"}
+            res = requests.get(url, headers=headers, timeout=3)
+            if res.status_code == 200 and len(res.json()) > 0:
+                data = res.json()[0]
+                lat, lon = float(data["lat"]), float(data["lon"])
+                
+                # 2. Get live weather
+                w_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,precipitation,wind_speed_10m&timezone=auto"
+                w_res = requests.get(w_url, timeout=3.0)
+                if w_res.status_code == 200:
+                    current = w_res.json().get("current", {})
+                    temp = current.get("temperature_2m", 30.0)
+                    precip = current.get("precipitation", 0.0)
+                    wind = current.get("wind_speed_10m", 10.0)
+                    
+                    condition = "clear"
+                    alert = "No active weather emergency"
+                    if precip > 10.0:
+                        condition = "heavy_rain"
+                        alert = "Heavy Rain Advisory Active"
+                    elif temp >= 40.0:
+                        condition = "heatwave"
+                        alert = "Extreme Heat Warning"
+                        
+                    return {
+                        "condition": condition,
+                        "rainfall_mm": precip,
+                        "temp_c": temp,
+                        "wind_kmh": wind,
+                        "alert": alert,
+                        "city": city
+                    }
+        except Exception as e:
+            self._log(f"[WARNING] Live weather fetch failed: {e}. Using fallback simulation.")
+            
+        # Fallback
         import random
         scenarios = [
-            {"condition": "heavy_rain", "rainfall_mm": random.randint(35, 80), "temp_c": random.randint(28, 33),
-             "wind_kmh": random.randint(30, 60), "alert": "Heavy Rain Advisory Active"},
-            {"condition": "heatwave", "rainfall_mm": 0, "temp_c": random.randint(42, 47),
-             "wind_kmh": random.randint(5, 15), "alert": "Extreme Heat Warning"},
-            {"condition": "clear", "rainfall_mm": 0, "temp_c": random.randint(32, 38),
-             "wind_kmh": random.randint(10, 20), "alert": "No active weather emergency"},
+            {"condition": "heavy_rain", "rainfall_mm": random.randint(35, 80), "temp_c": random.randint(28, 33), "wind_kmh": random.randint(30, 60), "alert": "Heavy Rain Advisory Active"},
+            {"condition": "heatwave", "rainfall_mm": 0, "temp_c": random.randint(42, 47), "wind_kmh": random.randint(5, 15), "alert": "Extreme Heat Warning"},
+            {"condition": "clear", "rainfall_mm": 0, "temp_c": random.randint(32, 38), "wind_kmh": random.randint(10, 20), "alert": "No active weather emergency"},
         ]
         scenario = random.choice(scenarios)
         scenario["city"] = city
         return scenario
 
     def _simulate_traffic_signal(self) -> Dict[str, Any]:
-        """Simulates a traffic API signal."""
+        """Simulates a traffic API signal dynamically based on current time."""
+        from datetime import datetime
         import random
-        congestion_level = random.choice(["normal", "moderate", "severe", "critical"])
+        
+        hour = datetime.now().hour
+        # Rush hours: 8-10 AM, 5-8 PM
+        is_rush_hour = (8 <= hour <= 10) or (17 <= hour <= 20)
+        
+        if is_rush_hour:
+            congestion_level = random.choice(["severe", "critical"])
+        elif 1 <= hour <= 5:
+            congestion_level = "normal"
+        else:
+            congestion_level = random.choice(["normal", "moderate", "severe"])
+            
         return {
             "congestion_level": congestion_level,
             "blocked_roads": random.randint(0, 5),
@@ -253,10 +377,144 @@ class CrisisIntelligenceAgent:
         self._log("CRISIS INTELLIGENCE PIPELINE INITIATED")
         self._log("=" * 60)
 
-        # ── Phase 1: Multi-source ingestion ──────────────────────────
+        # ── Phase 1: Multi-source ingestion & Satellite Verification ──
         self._log(f"Phase 1 — Ingesting {len(social_posts)} social signal(s)...")
+        
+        validated_signals = []
+        valid_social_posts = []
+        
         for i, post in enumerate(social_posts, 1):
             self._log(f"  📡 Signal [{i}]: {post[:80]}{'...' if len(post)>80 else ''}")
+            is_valid = True
+            reason = "Weather sensors corroborate report."
+            detected_type = None
+            landmark = ""
+            explanation = ""
+            
+            # If API key is present, use Gemini to parse location and crisis type robustly
+            if api_key:
+                try:
+                    self._log(f"    Analyzing signal [{i}] with Gemini AI model...")
+                    model = genai.GenerativeModel("gemini-3.5-flash")
+                    prompt = f'''
+Analyze the following social media post/signal reporting a crisis in {city}:
+"{post}"
+
+Extract the following details and return ONLY a valid JSON object. Do not include markdown formatting or backticks.
+{{
+  "landmark": "string, the specific location/landmark if mentioned in the text (e.g. Clifton 5, M2 motorway, Orangi Town, G-10), otherwise empty string",
+  "landmark_english_geocodable": "string, a standardized English translation/transliteration of the landmark suitable for OpenStreetMap search (e.g. 'Baloch Colony Flyover' for 'balouch ka pull', 'Teen Talwar Clifton' for 'teen talwar Clifton'), otherwise empty string",
+  "crisis_type": "string, one of: flood, fire, accident, heatwave, infrastructure, general",
+  "explanation": "string, short translation/explanation of the signal"
+}}
+'''
+                    response = model.generate_content(prompt)
+                    text_response = response.text.replace("```json", "").replace("```", "").strip()
+                    res_json = json.loads(text_response)
+                    
+                    landmark = res_json.get("landmark_english_geocodable", "") or res_json.get("landmark", "")
+                    detected_type = res_json.get("crisis_type", "general")
+                    explanation = res_json.get("explanation", "")
+                    self._log(f"      Gemini extracted landmark: '{landmark}' | Type: {detected_type.upper()}")
+                except Exception as e:
+                    self._log(f"      Gemini extraction error: {e}. Falling back to offline parsing.")
+            
+            if not detected_type or detected_type == "general":
+                # Fallback to regex & keyword detection
+                detected_type, _, matched_kws = _detect_crisis_from_signal(post)
+                
+                # Extract location from post via regex
+                match_en = re.search(r'\b(?:near|at|in|qareeb|mein|mai|main)\s+([A-Za-z0-9\s\-]+?)(?:,|\.|requires|needs|immediately|!|\bfor\b|$)', post, re.IGNORECASE)
+                if match_en:
+                    landmark = match_en.group(1).strip()
+                else:
+                    match_ur = re.search(r'([A-Za-z0-9\s\-]+?)\s+(?:mein|mai|main|ke\s+qareeb|qareeb|pe|par)\b', post, re.IGNORECASE)
+                    if match_ur:
+                        landmark = match_ur.group(1).strip()
+
+            # Clean punctuation
+            if landmark:
+                landmark = re.sub(r'[^\w\s\-]', '', landmark).strip()
+            else:
+                # Default to city name if no landmark found
+                landmark = city
+
+            # If it's a flood or heatwave report, query weather at the location
+            coords = None
+            if detected_type in ["flood", "heatwave"]:
+                try:
+                    # Clean landmark lower for dict lookup
+                    landmark_lower = landmark.lower()
+                    local_hit = None
+                    if landmark_lower in LOCAL_KARACHI_LOCATIONS:
+                        local_hit = LOCAL_KARACHI_LOCATIONS[landmark_lower]
+                    else:
+                        norm = landmark_lower.replace("colony", "").replace("bridge", "").replace("flyover", "").replace("pull", "").replace("chowrangi", "").replace("chaurangi", "").replace("road", "").replace("building", "").strip()
+                        if norm in LOCAL_KARACHI_LOCATIONS:
+                            local_hit = LOCAL_KARACHI_LOCATIONS[norm]
+                        else:
+                            for key, l_coords in LOCAL_KARACHI_LOCATIONS.items():
+                                if key in landmark_lower or landmark_lower in key:
+                                    local_hit = l_coords
+                                    break
+                                    
+                    if local_hit:
+                        coords = local_hit
+                        self._log(f"      [LOCAL DICTIONARY HIT] Geocoded '{landmark}' -> {coords}")
+                    else:
+                        query = f"{landmark}, {city}, Pakistan" if city.lower() not in landmark.lower() else f"{landmark}, Pakistan"
+                        self._log(f"    Verifying signal [{i}] location '{landmark}' against live satellites...")
+                        url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1"
+                        headers = {"User-Agent": "CIRO-Antigravity-Agent/1.0"}
+                        res = requests.get(url, headers=headers, timeout=3)
+                        
+                        # Fallback to city coordinates if landmark geocoding fails
+                        if res.status_code != 200 or len(res.json()) == 0:
+                            self._log(f"      Landmark '{landmark}' not found. Falling back to city '{city}' coordinates...")
+                            query = f"{city}, Pakistan"
+                            res = requests.get(f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1", headers=headers, timeout=3)
+                            
+                        if res.status_code == 200 and len(res.json()) > 0:
+                            data = res.json()[0]
+                            coords = (float(data["lat"]), float(data["lon"]))
+                        else:
+                            self._log(f"      Nominatim could not locate '{landmark}' or '{city}'. Verification skipped.")
+
+                    if coords:
+                        # Query weather
+                        w_url = f"https://api.open-meteo.com/v1/forecast?latitude={coords[0]}&longitude={coords[1]}&current=temperature_2m,precipitation&timezone=auto"
+                        w_res = requests.get(w_url, timeout=3.0)
+                        if w_res.status_code == 200:
+                            w_data = w_res.json().get("current", {})
+                            temp = w_data.get("temperature_2m", 0.0)
+                            precip = w_data.get("precipitation", 0.0)
+                            
+                            self._log(f"      Satellite check at {landmark} -> Temp: {temp}°C | Precipitation: {precip}mm")
+                            
+                            if detected_type == "heatwave" and temp < 38.0:
+                                is_valid = False
+                                reason = f"FAKE NEWS: Reported heatwave, but live satellite temperature at {landmark} is only {temp}°C (threshold: >= 38.0°C)."
+                            elif detected_type == "flood" and precip < 2.0:
+                                is_valid = False
+                                reason = f"FAKE NEWS: Reported flooding/rain, but live satellite precipitation at {landmark} is only {precip}mm (threshold: >= 2.0mm)."
+                        else:
+                            self._log("      Weather API error during verification. Assuming signal is valid.")
+                except Exception as e:
+                    self._log(f"      Signal validation error: {e}. Skipping verification.")
+            
+            if not is_valid:
+                self._log(f"    ❌ Signal [{i}] flagged as FALSE INFO: {reason}")
+            else:
+                self._log(f"    ✅ Signal [{i}] verified successfully.")
+                valid_social_posts.append(post)
+                
+            validated_signals.append({
+                "post": post,
+                "is_valid": is_valid,
+                "reason": reason,
+                "location": landmark or city,
+                "coordinates": coords
+            })
 
         weather = {}
         if include_weather:
@@ -273,12 +531,19 @@ class CrisisIntelligenceAgent:
         # ── Phase 2: Signal fusion & crisis detection ─────────────────
         self._log("Phase 2 — Running multi-signal fusion and crisis detection...")
 
-        all_signals_text = " ".join(social_posts)
-        crisis_type, base_confidence, matched_keywords = _detect_crisis_from_signal(all_signals_text)
+        all_signals_text = " ".join(valid_social_posts) if valid_social_posts else ""
+        
+        if not all_signals_text:
+            crisis_type = "disinformation"
+            base_confidence = 0
+            matched_keywords = ["all signals flagged as fake news"]
+            self._log("  ❌ Crisis Detected: [DISINFORMATION] | Confidence: 100% | All signals flagged as fake news.")
+        else:
+            crisis_type, base_confidence, matched_keywords = _detect_crisis_from_signal(all_signals_text)
 
         # Boost confidence from corroborating weather/traffic signals
         weather_boost = 0
-        if weather:
+        if weather and crisis_type != "disinformation":
             if crisis_type == "flood" and weather.get("condition") == "heavy_rain":
                 weather_boost = 20
                 self._log("  🔗 Corroborating weather signal: Heavy rain confirms flood crisis → +20% confidence")
@@ -287,19 +552,22 @@ class CrisisIntelligenceAgent:
                 self._log(f"  🔗 Corroborating weather signal: {weather['temp_c']}°C extreme temp confirms heatwave → +25% confidence")
 
         traffic_boost = 0
-        if traffic:
+        if traffic and crisis_type != "disinformation":
             if traffic["congestion_level"] in ("severe", "critical") and crisis_type in ("flood", "accident"):
                 traffic_boost = 15
                 self._log(f"  🔗 Corroborating traffic signal: {traffic['congestion_level']} congestion confirms {crisis_type} impact → +15% confidence")
 
-        final_confidence = min(base_confidence + weather_boost + traffic_boost, 99)
+        if crisis_type == "disinformation":
+            final_confidence = 100
+        else:
+            final_confidence = min(base_confidence + weather_boost + traffic_boost, 99)
 
         if crisis_type is None:
             crisis_type = "accident"
             final_confidence = 45
             matched_keywords = ["unclassified signal"]
             self._log("  ⚠ No definitive crisis pattern detected — defaulting to unclassified emergency")
-        else:
+        elif crisis_type != "disinformation":
             self._log(f"  ✅ Crisis Detected: [{crisis_type.upper()}] | Confidence: {final_confidence}% | Matched signals: {matched_keywords}")
 
         # ── Phase 3: Situation analysis ───────────────────────────────
@@ -354,6 +622,7 @@ class CrisisIntelligenceAgent:
             "icon": config["icon"],
             "color": config["color"],
             "social_posts": social_posts,
+            "validated_signals": validated_signals,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "before_state": {
                 "traffic_flow": "Normal",
