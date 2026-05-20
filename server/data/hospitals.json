@@ -1,0 +1,72 @@
+[
+  {
+    "id": "HOSP-A",
+    "name": "Dr. Ruth K.M. Pfau Civil Hospital (Trauma Center)",
+    "hospital_type": "Trauma Center",
+    "coordinates": [
+      24.8598,
+      67.0125
+    ],
+    "available_beds": 25,
+    "icu_beds": 2,
+    "ventilators": 1,
+    "contact_number": "+92-21-99215740",
+    "accepts_trauma": true
+  },
+  {
+    "id": "HOSP-B",
+    "name": "Aga Khan University Hospital (AKUH)",
+    "hospital_type": "Specialized Tertiary & ICU",
+    "coordinates": [
+      24.8922,
+      67.0747
+    ],
+    "available_beds": 15,
+    "icu_beds": 8,
+    "ventilators": 4,
+    "contact_number": "+92-21-111-911-911",
+    "accepts_trauma": true
+  },
+  {
+    "id": "HOSP-C",
+    "name": "National Institute of Cardiovascular Diseases (NICVD)",
+    "hospital_type": "Specialized Cardiac",
+    "coordinates": [
+      24.8508,
+      67.039
+    ],
+    "available_beds": 10,
+    "icu_beds": 12,
+    "ventilators": 6,
+    "contact_number": "+92-21-99201271",
+    "accepts_trauma": false
+  },
+  {
+    "id": "HOSP-D",
+    "name": "Jinnah Postgraduate Medical Centre (JPMC)",
+    "hospital_type": "General & Trauma",
+    "coordinates": [
+      24.8519,
+      67.0427
+    ],
+    "available_beds": 30,
+    "icu_beds": 5,
+    "ventilators": 3,
+    "contact_number": "+92-21-99201300",
+    "accepts_trauma": true
+  },
+  {
+    "id": "HOSP-E",
+    "name": "Indus Hospital & Health Network",
+    "hospital_type": "General & ICU",
+    "coordinates": [
+      24.8231,
+      67.1189
+    ],
+    "available_beds": 18,
+    "icu_beds": 6,
+    "ventilators": 2,
+    "contact_number": "+92-21-111-111-880",
+    "accepts_trauma": true
+  }
+]
