@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
     "@tailwindcss/postcss": "^4.3.0",
     "autoprefixer": "^10.5.0",
     "leaflet": "^1.9.4",

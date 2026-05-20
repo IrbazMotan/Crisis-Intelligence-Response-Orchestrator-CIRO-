@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CIRO Mobile</string>
+    <string name="title_activity_main">CIRO Mobile</string>
+    <string name="package_name">com.ciro.app</string>
+    <string name="custom_url_scheme">com.ciro.app</string>
+</resources>
